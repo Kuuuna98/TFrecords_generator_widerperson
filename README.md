@@ -4,6 +4,7 @@
  + <http://www.cbsr.ia.ac.cn/users/sfzhang/WiderPerson/>
 
 2. directory structure
+'''
 .
 └── TFrecords_generator_widerperson
     ├── data
@@ -30,3 +31,4 @@
     │        ├── train.txt
     │        └── val.txt
     └── tfrecords_generator_widerperson.py
+    '''
