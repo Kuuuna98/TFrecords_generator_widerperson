@@ -3,7 +3,7 @@ import multiprocessing
 from pathlib import Path
 import threading
 
-# from absl.flags import FLAGS
+from absl.flags import FLAGS
 import cv2
 import numpy as np
 from pycocotools.coco import COCO
@@ -68,13 +68,11 @@ class TFRecordsGenerator(object):
             feature={
                 'image_raw': self._bytes_feature(resized['image_raw']),
                 'bboxes': self._float_list_feature(resized['bboxes'])
+            } if not FLAGS.debug_mode else {
+                'image_raw': self._bytes_feature(resized['image_raw']),
+                'bboxes': self._float_list_feature(resized['bboxes']),
+                'image_id': self._int64_feature(single_data['image_id'])
             }))
-
-        #            if not FLAGS.debug_mode else {
-        #                'image_raw': self._bytes_feature(resized['image_raw']),
-        #                'bboxes': self._float_list_feature(resized['bboxes']),
-        #                'image_id': self._int64_feature(single_data['image_id'])
-        #            }))"""
 
         return example
 
@@ -96,16 +94,11 @@ class TFRecordsGenerator(object):
                                           border_left, border_right,
                                           cv2.BORDER_CONSTANT)
         resized_image = cv2.resize(padded_image,
-                                   dsize=(512, 512),
+                                   dsize=(FLAGS.input_size, FLAGS.input_size),
                                    interpolation=cv2.INTER_AREA)
 
-        #                resized_image = cv2.resize(padded_image,
-        #                                   dsize=(FLAGS.input_size, FLAGS.input_size),
-        #                                   interpolation=cv2.INTER_AREA)
-
         bboxes = np.array(single_data['bboxes'])
-        ratio = (512 - 1) / image_long_side
-        #       ratio = (FLAGS.input_size - 1) / image_long_side
+        ratio = (FLAGS.input_size - 1) / (image_long_side - 1)
         resized_bboxes = (bboxes + [border_left, border_top] * 2) * ratio
         padded_bboxes = np.pad(resized_bboxes,
                                ((0, self._num_bbox - len(resized_bboxes)),
@@ -113,10 +106,10 @@ class TFRecordsGenerator(object):
 
         return {
             'image_raw':
-                cv2.imencode('.jpg', resized_image,
-                             [cv2.IMWRITE_JPEG_QUALITY, 100])[1].tostring(),
+            cv2.imencode('.jpg', resized_image,
+                         [cv2.IMWRITE_JPEG_QUALITY, 100])[1].tostring(),
             'bboxes':
-                padded_bboxes.reshape(-1)
+            padded_bboxes.reshape(-1)
         }
 
     def _bytes_feature(self, value):
@@ -133,7 +126,6 @@ class TFRecordsGenerator(object):
         annot_file = self.data_dir / f'WiderPerson_{"train" if train else "val"}2019.json'
         if not annot_file.exists():
             self._widerperson2coco(train)
-            self._widerperson_test(train)
 
         coco = COCO(annot_file)
         person_cat_id = coco.getCatIds(catNms='person')
@@ -160,7 +152,8 @@ class TFRecordsGenerator(object):
             if not bboxes:
                 continue
             file_name = coco.imgs[person_img_id]['file_name']
-            image_path = str(self.data_dir / 'WiderPerson' / 'Images' / file_name)
+            image_path = str(self.data_dir / 'WiderPerson' / 'Images' /
+                             file_name)
 
             db.append({
                 'image': image_path,
@@ -183,29 +176,47 @@ class TFRecordsGenerator(object):
         anno_v = []
         categ_v = []
 
-        with open(self.data_dir / 'WiderPerson' / f'{"train" if train else "val"}.txt') as f:
+        with open(self.data_dir / 'WiderPerson' /
+                  f'{"train" if train else "val"}.txt') as f:
             for item in tqdm(f.readlines(), unit=' files'):
                 file_name = item.rstrip('\n') + '.jpg'
                 with (open(annot_path / f'{file_name}.txt')) as anno_f:
                     img = cv2.imread(str(img_path / f'{file_name}'))
                     h, w, c = img.shape
                     annot = anno_f.readlines()
-                    img_info = {'file_name': file_name, 'coco_url': 'invalid', 'height': h, 'width': w,
-                                'id': np.int(file_name.split('.')[0])}
+                    img_info = {
+                        'file_name': file_name,
+                        'coco_url': 'invalid',
+                        'height': h,
+                        'width': w,
+                        'id': np.int(file_name.split('.')[0])
+                    }
 
                     exist = False
                     for (i, line) in zip(range(-1, len(annot)), annot):
                         bbox_split = line.strip().split(' ')
                         if i != -1 and bbox_split[0] < '4':
                             exist = True
-                            bbox_info = {'bbox': [np.float64(bbox_split[1]), np.float64(bbox_split[2]),
-                                                  np.float64(bbox_split[3]), np.float64(bbox_split[4])],
-                                         'area': np.float64(bbox_split[3]) * np.float64(bbox_split[4]),
-                                         'image_id': np.int(file_name.split('.')[0]),
-                                         'category_id': 1,
-                                         'id': (np.int(file_name.split('.')[0]) + 10 ** 7) * 10 ** 4 + i,
-                                         'iscrowd': 0
-                                         }
+                            bbox_info = {
+                                'bbox': [
+                                    np.float64(bbox_split[1]),
+                                    np.float64(bbox_split[2]),
+                                    np.float64(bbox_split[3]),
+                                    np.float64(bbox_split[4])
+                                ],
+                                'area':
+                                np.float64(bbox_split[3]) *
+                                np.float64(bbox_split[4]),
+                                'image_id':
+                                np.int(file_name.split('.')[0]),
+                                'category_id':
+                                1,
+                                'id':
+                                (np.int(file_name.split('.')[0]) + 10**7) *
+                                10**4 + i,
+                                'iscrowd':
+                                0
+                            }
                             anno_v.append(bbox_info)
 
                     if exist: img_v.append(img_info)
@@ -219,13 +230,29 @@ class TFRecordsGenerator(object):
 
         with open(
                 self.data_dir /
-                f'WiderPerson_{"train" if train else "val"}2019.json', 'w') as f:
+                f'WiderPerson_{"train" if train else "val"}2019.json',
+                'w') as f:
             json.dump(coco, f)
 
-    def _widerperson_test(self, train):
 
-        annot_file = self.data_dir / f'WiderPerson_{"train" if train else "val"}2019.json'
-        annot_path = self.data_dir / 'WiderPerson' / 'Annotations'
+if __name__ == '__main__':
+    from absl import app
+    from absl import flags
+
+    flags.DEFINE_string('data_dir', 'data', 'Data root directory path')
+    flags.DEFINE_integer('input_size', 512, 'Model input size')
+    flags.DEFINE_boolean('debug_mode', False, 'Debug mode')
+
+    def main(_):
+        TFRecordsGenerator(FLAGS.data_dir, FLAGS.input_size).run()
+        widerperson_test(FLAGS.data_dir, train=False)
+
+    def widerperson_test(data_dir, train):
+
+        data_dir = Path(data_dir)
+
+        annot_file = data_dir / f'WiderPerson_{"train" if train else "val"}2019.json'
+        annot_path = data_dir / 'WiderPerson' / 'Annotations'
 
         coco = COCO(annot_file)
         person_cat_id = coco.getCatIds(catNms='person')
@@ -233,7 +260,8 @@ class TFRecordsGenerator(object):
         person_anno_ids = coco.getAnnIds(areaRng=(0, np.inf), iscrowd=False)
 
         n_bbox = 0
-        with open(self.data_dir / 'WiderPerson' / f'{"train" if train else "val"}.txt') as f:
+        with open(data_dir / 'WiderPerson' /
+                  f'{"train" if train else "val"}.txt') as f:
             items = f.readlines()
             for item in items:
                 file_name = item.rstrip('\n') + '.jpg'
@@ -244,7 +272,9 @@ class TFRecordsGenerator(object):
                         if i != -1 and bbox_split[0] < '4':
                             n_bbox = n_bbox + 1
 
-        print('\n----test----------------------------------------------------------------------')
+        print(
+            '\n----test----------------------------------------------------------------------'
+        )
         print("\nimg 개수 확인:", len(person_img_ids) == len(items))
         print("COCO json - img 개수:", len(person_img_ids))
         print("txt file - img 개수:", len(items))
@@ -252,21 +282,8 @@ class TFRecordsGenerator(object):
         print("\nbbox 개수 확인:", len(person_anno_ids) == n_bbox)
         print("COCO json - bbox 개수:", len(person_anno_ids))
         print("txt file - classlabel 1,2,3인 bbox 개수:", n_bbox)
-        print('------------------------------------------------------------------------------')
-
-if __name__ == '__main__':
-    from absl import app
-
-
-    #    from absl import flags
-
-    #    flags.DEFINE_string('data_dir', 'data', 'Data root directory path')
-    #    flags.DEFINE_integer('input_size', 512, 'Model input size')
-    #    flags.DEFINE_boolean('debug_mode', False, 'Debug mode')
-
-    def main(_):
-        #        TFRecordsGenerator(FLAGS.data_dir, FLAGS.input_size).run()
-        TFRecordsGenerator('data', 512).run()
-
+        print(
+            '------------------------------------------------------------------------------'
+        )
 
     app.run(main)
