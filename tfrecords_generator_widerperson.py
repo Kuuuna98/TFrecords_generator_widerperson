@@ -141,11 +141,7 @@ class TFRecordsGenerator(object):
             width = coco.imgs[person_img_id]['width']
             height = coco.imgs[person_img_id]['height']
             for person in person_objs:
-                x, y, w, h = person['bbox']
-                x1 = np.max((0, int(x)))
-                y1 = np.max((0, int(y)))
-                x2 = np.min((int(x + w), width - 1))
-                y2 = np.min((int(y + h), height - 1))
+                x1, y1, x2, y2 = person['bbox']
                 if x1 >= x2 or y1 >= y2:
                     continue
                 bboxes.append([x1, y1, x2, y2])
