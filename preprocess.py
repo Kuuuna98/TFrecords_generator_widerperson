@@ -58,8 +58,8 @@ def bbox_resize(last_coord, bboxes, random_diff):
 def crop_bbox(last_coord, bboxes):
 
     valid_bboxes = bboxes[tf.reduce_all(tf.logical_and(
-        tf.logical_and((bboxes[:, 0::4] < last_coord), (bboxes[:, 2::4] > 0)),
-        tf.logical_and((bboxes[:, 1::4] < last_coord), (bboxes[:, 3::4] > 0))),
+        tf.logical_and((bboxes[:, 0:1] < last_coord), (bboxes[:, 2:3] > 0)),
+        tf.logical_and((bboxes[:, 1:2] < last_coord), (bboxes[:, -1:] > 0))),
                                         axis=-1)]
 
     xmin, ymin, xmax, ymax = tf.split(value=valid_bboxes,
