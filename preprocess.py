@@ -56,15 +56,13 @@ def bbox_resize(last_coord, bboxes, random_diff):
 
 
 def crop_bbox(last_coord, bboxes):
-    uncropped_bboxes = bboxes[tf.reduce_all(tf.logical_and(
-        (bboxes > 0), (bboxes < last_coord)),
-                                            axis=-1)]
-    cropped_bboxes = bboxes[tf.reduce_all(tf.logical_and(
+
+    valid_bboxes = bboxes[tf.reduce_all(tf.logical_and(
         tf.logical_and((bboxes[:, 0::4] < last_coord), (bboxes[:, 2::4] > 0)),
         tf.logical_and((bboxes[:, 1::4] < last_coord), (bboxes[:, 3::4] > 0))),
-                                          axis=-1)]
+                                        axis=-1)]
 
-    xmin, ymin, xmax, ymax = tf.split(value=cropped_bboxes,
+    xmin, ymin, xmax, ymax = tf.split(value=valid_bboxes,
                                       num_or_size_splits=4,
                                       axis=1)
 
@@ -75,7 +73,7 @@ def crop_bbox(last_coord, bboxes):
 
     cropped_bboxes = tf.concat([xmin, ymin, xmax, ymax], 1)
 
-    return tf.concat([uncropped_bboxes, cropped_bboxes], 0)
+    return cropped_bboxes
 
 
 def random_flip_lr(image, bboxes):
