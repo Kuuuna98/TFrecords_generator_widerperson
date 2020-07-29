@@ -13,9 +13,9 @@ def get_factor(image):
 
 def random_resize(image, bboxes):
     last_coord = get_factor(image)
+    do_a_resize_random = random_factor()
     random_diff = random_factor(-0.3 * last_coord, 0.3 * last_coord)
     random_diff_ratio = random_diff / last_coord
-    do_a_resize_random = random_factor()
 
     adjusted_image = tf.cond(
         do_a_resize_random < 0.3,
@@ -77,6 +77,7 @@ def crop_bbox(last_coord, bboxes):
 
 
 def random_flip_lr(image, bboxes):
+    last_coord = get_factor(image)
     do_a_flip_random = random_factor()
 
     adjusted_image = tf.cond(do_a_flip_random < 0.3,
@@ -84,7 +85,7 @@ def random_flip_lr(image, bboxes):
                              false_fn=lambda: image)
 
     adjusted_bboxes = tf.cond(do_a_flip_random < 0.3,
-                              true_fn=lambda: bbox_flip_lr(image, bboxes),
+                              true_fn=lambda: bbox_flip_lr(last_coord, bboxes),
                               false_fn=lambda: bboxes)
 
     return adjusted_image, adjusted_bboxes
@@ -94,8 +95,7 @@ def image_flip_lr(image):
     return tf.image.flip_left_right(image)
 
 
-def bbox_flip_lr(image, bboxes):
-    last_coord = get_factor(image)
+def bbox_flip_lr(last_coord, bboxes):
     valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
     flipped_bboxes = tf.gather(valid_bboxes, [2, 1, 0, 3],
                                axis=-1) * [-1., 1., -1., 1.] + [
