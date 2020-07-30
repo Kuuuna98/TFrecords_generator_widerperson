@@ -5,97 +5,86 @@ def random_factor(minval=0, maxval=None):
     return tf.random.uniform([], minval, maxval, seed=42)
 
 
-def get_factor(image):
+def last_coord_factor(image):
     input_size = tf.cast(tf.shape(image)[0], tf.float32)
     last_coord = input_size - 1
     return last_coord
 
 
-def random_resize(image, bboxes):
-    last_coord = get_factor(image)
-    do_a_resize_random = random_factor()
-    random_diff = random_factor(-0.3 * last_coord, 0.3 * last_coord)
-    random_diff_ratio = random_diff / last_coord
+def random_resize(image,
+                  bboxes,
+                  run_criteria=0.3,
+                  scale_min=0.7,
+                  scale_max=1.3):
+    scale_factor = random_factor(scale_min, scale_max)
+    do_a_resize_random = tf.where(random_factor() < run_criteria, True, False)
 
-    adjusted_image = tf.cond(
-        do_a_resize_random < 0.3,
-        true_fn=lambda: image_resize(image, random_diff_ratio),
-        false_fn=lambda: image)
-
-    adjusted_bboxes = tf.cond(
-        do_a_resize_random < 0.3,
-        true_fn=lambda: bbox_resize(last_coord, bboxes, random_diff),
-        false_fn=lambda: bboxes)
-
-    return adjusted_image, adjusted_bboxes
+    if do_a_resize_random:
+        adjusted_image = _resize_image(image, scale_factor)
+        adjusted_bboxes = _resize_bbox(last_coord_factor(image), bboxes,
+                                       scale_factor)
+        return adjusted_image, adjusted_bboxes
+    else:
+        return image, bboxes
 
 
-def image_resize(image, random_diff_ratio):
+def _resize_image(image, scale_factor):
     input_size = tf.cast(tf.shape(image)[0], tf.float32)
-    resized_image = tf.image.crop_and_resize([image], [[
-        random_diff_ratio, random_diff_ratio, 1 - random_diff_ratio,
-        1 - random_diff_ratio
-    ]], [0], [int(input_size), int(input_size)])[0]
-
+    box_indices = 0.5 + 0.5 / tf.convert_to_tensor(
+        [[-scale_factor, -scale_factor, scale_factor, scale_factor]])
+    resized_image = tf.image.crop_and_resize(
+        [image], box_indices, [0],
+        [int(input_size), int(input_size)])[0]
     return resized_image
 
 
-def bbox_resize(last_coord, bboxes, random_diff):
+def _resize_bbox(last_coord, bboxes, scale_factor):
+    center = last_coord / 2
     valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    resized_bboxes = (valid_bboxes - random_diff) * last_coord / (
-        last_coord - 2 * random_diff)
+    valid_bboxes = tf.reshape(valid_bboxes, (-1, 2))
+    resized_bboxes = (valid_bboxes - center) @ [[scale_factor, 0],
+                                                [0, scale_factor]] + center
+    resized_bboxes = tf.reshape(resized_bboxes, (-1, 4))
 
-    if random_diff > 0: resized_bboxes = crop_bbox(last_coord, resized_bboxes)
+    if scale_factor > 1:
+        resized_bboxes = _crop_bbox(last_coord, resized_bboxes)
 
     resized_bboxes = tf.pad(
         resized_bboxes,
         [[0, tf.shape(bboxes)[0] - tf.shape(resized_bboxes)[0]], [0, 0]],
         'CONSTANT')
-
     return resized_bboxes
 
 
-def crop_bbox(last_coord, bboxes):
+def _crop_bbox(last_coord, bboxes):
+    clipped_bboxes = tf.clip_by_value(bboxes,
+                                      clip_value_min=0,
+                                      clip_value_max=last_coord)
+    matrix_bboxes = tf.reshape(clipped_bboxes, (-1, 2, 2))
+    bboxes_length = [[[-1., 1.]]] @ matrix_bboxes
+    clipped_bboxes = clipped_bboxes[tf.squeeze(tf.reduce_all(
+        bboxes_length != 0, axis=-1),
+                                               axis=-1)]
 
-    valid_bboxes = bboxes[tf.reduce_all(tf.logical_and(
-        tf.logical_and((bboxes[:, 0:1] < last_coord), (bboxes[:, 2:3] > 0)),
-        tf.logical_and((bboxes[:, 1:2] < last_coord), (bboxes[:, -1:] > 0))),
-                                        axis=-1)]
-
-    xmin, ymin, xmax, ymax = tf.split(value=valid_bboxes,
-                                      num_or_size_splits=4,
-                                      axis=1)
-
-    xmin = tf.where(xmin < 0, 0., xmin)
-    ymin = tf.where(ymin < 0, 0., ymin)
-    xmax = tf.where(xmax > last_coord, last_coord, xmax)
-    ymax = tf.where(ymax > last_coord, last_coord, ymax)
-
-    cropped_bboxes = tf.concat([xmin, ymin, xmax, ymax], 1)
-
-    return cropped_bboxes
+    return clipped_bboxes
 
 
-def random_flip_lr(image, bboxes):
-    last_coord = get_factor(image)
-    do_a_flip_random = random_factor()
+def random_flip_lr(image, bboxes, run_criteria=0.3):
+    do_a_flip_random = tf.where(random_factor() < run_criteria, True, False)
 
-    adjusted_image = tf.cond(do_a_flip_random < 0.3,
-                             true_fn=lambda: image_flip_lr(image),
-                             false_fn=lambda: image)
-
-    adjusted_bboxes = tf.cond(do_a_flip_random < 0.3,
-                              true_fn=lambda: bbox_flip_lr(last_coord, bboxes),
-                              false_fn=lambda: bboxes)
-
-    return adjusted_image, adjusted_bboxes
+    if do_a_flip_random:
+        adjusted_image = _flip_lr_image(image)
+        adjusted_bboxes = _flip_lr_bbox(last_coord_factor(image), bboxes)
+        return adjusted_image, adjusted_bboxes
+    else:
+        return image, bboxes
 
 
-def image_flip_lr(image):
+def _flip_lr_image(image):
     return tf.image.flip_left_right(image)
 
 
-def bbox_flip_lr(last_coord, bboxes):
+def _flip_lr_bbox(last_coord, bboxes):
     valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
     flipped_bboxes = tf.gather(valid_bboxes, [2, 1, 0, 3],
                                axis=-1) * [-1., 1., -1., 1.] + [
