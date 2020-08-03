@@ -17,7 +17,7 @@ def random_resize(image,
                   scale_min=0.7,
                   scale_max=1.3):
     scale_factor = random_factor(scale_min, scale_max)
-    do_a_resize_random = tf.where(random_factor() < run_criteria, True, False)
+    do_a_resize_random = random_factor() < run_criteria
 
     if do_a_resize_random:
         adjusted_image = _resize_image(image, scale_factor)
@@ -70,7 +70,7 @@ def _crop_bbox(last_coord, bboxes):
 
 
 def random_flip_lr(image, bboxes, run_criteria=0.3):
-    do_a_flip_random = tf.where(random_factor() < run_criteria, True, False)
+    do_a_flip_random = random_factor() < run_criteria
 
     if do_a_flip_random:
         adjusted_image = _flip_lr_image(image)
