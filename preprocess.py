@@ -126,7 +126,9 @@ def _rotate_bbox(bboxes, last_coord, radians, degree_factor):
     valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
     factor = radians
 
-    if (90 <= degree_factor < 180) or (270 <= degree_factor < 360):
+    if (degree_factor >= 90
+            and degree_factor < 180) or (degree_factor >= 270
+                                         and degree_factor < 360):
         valid_bboxes = tf.gather(valid_bboxes, [2, 1, 0, 3], axis=-1)
 
     valid_bboxes_x = tf.reshape(valid_bboxes, (-1, 2))
