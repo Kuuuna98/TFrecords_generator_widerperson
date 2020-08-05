@@ -124,8 +124,8 @@ def _rotate_bbox(last_coord, bboxes, radians):
     rotated_coordinate = (coordinate - center) @ [[
         tf.cos(radians), -tf.sin(radians)
     ], [tf.sin(radians), tf.cos(radians)]] + center
-    min_xy = tf.reshape(tf.reduce_min(rotated_coordinate[:], axis=1), (-1, 2))
-    max_xy = tf.reshape(tf.reduce_max(rotated_coordinate[:], axis=1), (-1, 2))
+    min_xy = tf.reshape(tf.reduce_min(rotated_coordinate, axis=1), (-1, 2))
+    max_xy = tf.reshape(tf.reduce_max(rotated_coordinate, axis=1), (-1, 2))
     rotated_bboxes = tf.concat([min_xy, max_xy], 1)
     rotated_bboxes = _crop_bbox(last_coord, rotated_bboxes)
     rotated_bboxes = tf.pad(
@@ -136,15 +136,10 @@ def _rotate_bbox(last_coord, bboxes, radians):
     return rotated_bboxes
 
 
-def random_translateX(image,
-                      bboxes,
-                      run_criteria=0.3,
-                      minval=-0.3,
-                      maxval=0.3):
+def random_translateX(image, bboxes, run_criteria=0.3, minval=-8, maxval=8):
     do_a_translate_random = random_factor() < run_criteria
     if do_a_translate_random:
-        translate_factor = random_factor(minval,
-                                         maxval) * last_coord_factor(image)
+        translate_factor = random_factor(minval, maxval)
         adjusted_image = _translateX_image(image, translate_factor)
         adjusted_bboxes = _translateX_bbox(last_coord_factor(image), bboxes,
                                            translate_factor)
@@ -170,15 +165,10 @@ def _translateX_bbox(last_coord, bboxes, translateX_factor):
     return translated_bboxes
 
 
-def random_translateY(image,
-                      bboxes,
-                      run_criteria=0.3,
-                      minval=-0.3,
-                      maxval=0.3):
+def random_translateY(image, bboxes, run_criteria=0.3, minval=-8, maxval=8):
     do_a_translate_random = random_factor() < run_criteria
     if do_a_translate_random:
-        translate_factor = random_factor(minval,
-                                         maxval) * last_coord_factor(image)
+        translate_factor = random_factor(minval, maxval)
         adjusted_image = _translateY_image(image, translate_factor)
         adjusted_bboxes = _translateY_bbox(last_coord_factor(image), bboxes,
                                            translate_factor)
