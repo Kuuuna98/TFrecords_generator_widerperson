@@ -78,13 +78,13 @@ class DatasetGenerator(object):
 
     def _extract_valid_bboxes(self, image, bboxes):
         valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-        return tf.image.convert_image_dtype(image, tf.uint8), valid_bboxes
+        return image, valid_bboxes
 
     def _pad_bboxes(self, image, bboxes):
         padded_bboxes = tf.pad(
             bboxes, [[0, self._num_bbox - tf.shape(bboxes)[0]], [0, 0]],
             'CONSTANT')
-        return tf.image.convert_image_dtype(image, tf.uint8), padded_bboxes
+        return image, padded_bboxes
 
 
 if __name__ == '__main__':
