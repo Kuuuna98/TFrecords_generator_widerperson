@@ -200,8 +200,8 @@ def _shearX_bbox(last_coord, bboxes, shearX_factor):
     sheared_coordinate = sheared_coordinate @ [[1., 0.],
                                                [-1 * shearX_factor, 1.]]
 
-    min_xy = tf.reshape(tf.reduce_min(sheared_coordinate[:], axis=1), (-1, 2))
-    max_xy = tf.reshape(tf.reduce_max(sheared_coordinate[:], axis=1), (-1, 2))
+    min_xy = tf.reshape(tf.reduce_min(sheared_coordinate, axis=1), (-1, 2))
+    max_xy = tf.reshape(tf.reduce_max(sheared_coordinate, axis=1), (-1, 2))
     sheared_bboxes = tf.concat([min_xy, max_xy], 1)
 
     sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
@@ -244,8 +244,8 @@ def _shearY_bbox(last_coord, bboxes, shearY_factor):
     sheared_coordinate = sheared_coordinate @ [[1., -1 * shearY_factor],
                                                [0., 1.]]
 
-    min_xy = tf.reshape(tf.reduce_min(sheared_coordinate[:], axis=1), (-1, 2))
-    max_xy = tf.reshape(tf.reduce_max(sheared_coordinate[:], axis=1), (-1, 2))
+    min_xy = tf.reshape(tf.reduce_min(sheared_coordinate, axis=1), (-1, 2))
+    max_xy = tf.reshape(tf.reduce_max(sheared_coordinate, axis=1), (-1, 2))
     sheared_bboxes = tf.concat([min_xy, max_xy], 1)
 
     sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
