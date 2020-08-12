@@ -41,17 +41,12 @@ def _resize_image(image, scale_factor):
 
 def _resize_bbox(last_coord, bboxes, scale_factor):
     center = last_coord / 2
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    valid_bboxes = tf.reshape(valid_bboxes, (-1, 2))
-    resized_bboxes = (valid_bboxes - center) @ [[scale_factor, 0],
-                                                [0, scale_factor]] + center
+    resized_bboxes = tf.reshape(bboxes, (-1, 2))
+    resized_bboxes = (resized_bboxes - center) @ [[scale_factor, 0],
+                                                  [0, scale_factor]] + center
     resized_bboxes = tf.reshape(resized_bboxes, (-1, 4))
     if scale_factor > 1:
         resized_bboxes = _crop_bbox(last_coord, resized_bboxes)
-    resized_bboxes = tf.pad(
-        resized_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(resized_bboxes)[0]], [0, 0]],
-        'CONSTANT')
     return resized_bboxes
 
 
@@ -82,15 +77,10 @@ def _flip_lr_image(image):
 
 
 def _flip_lr_bbox(last_coord, bboxes):
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    flipped_bboxes = tf.gather(valid_bboxes, [2, 1, 0, 3],
+    flipped_bboxes = tf.gather(bboxes, [2, 1, 0, 3],
                                axis=-1) * [-1., 1., -1., 1.] + [
                                    last_coord, 0., last_coord, 0.
                                ]
-    flipped_bboxes = tf.pad(
-        flipped_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(flipped_bboxes)[0]], [0, 0]],
-        'CONSTANT')
     return flipped_bboxes
 
 
@@ -114,8 +104,7 @@ def _rotate_image(image, radians):
 
 def _rotate_bbox(last_coord, bboxes, radians):
     center = last_coord / 2
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    min_x, min_y, max_x, max_y = tf.split(value=valid_bboxes,
+    min_x, min_y, max_x, max_y = tf.split(value=bboxes,
                                           num_or_size_splits=4,
                                           axis=1)
     coordinate = tf.reshape(
@@ -128,11 +117,6 @@ def _rotate_bbox(last_coord, bboxes, radians):
     max_xy = tf.reshape(tf.reduce_max(rotated_coordinate, axis=1), (-1, 2))
     rotated_bboxes = tf.concat([min_xy, max_xy], 1)
     rotated_bboxes = _crop_bbox(last_coord, rotated_bboxes)
-    rotated_bboxes = tf.pad(
-        rotated_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(rotated_bboxes)[0]], [0, 0]],
-        'CONSTANT')
-
     return rotated_bboxes
 
 
@@ -153,15 +137,8 @@ def _translateX_image(image, translateX_factor):
 
 
 def _translateX_bbox(last_coord, bboxes, translateX_factor):
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    translated_bboxes = valid_bboxes + [
-        translateX_factor, 0, translateX_factor, 0
-    ]
+    translated_bboxes = bboxes + [translateX_factor, 0, translateX_factor, 0]
     translated_bboxes = _crop_bbox(last_coord, translated_bboxes)
-    translated_bboxes = tf.pad(
-        translated_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(translated_bboxes)[0]], [0, 0]],
-        'CONSTANT')
     return translated_bboxes
 
 
@@ -182,15 +159,8 @@ def _translateY_image(image, translateY_factor):
 
 
 def _translateY_bbox(last_coord, bboxes, translateY_factor):
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    translated_bboxes = valid_bboxes + [
-        0, translateY_factor, 0, translateY_factor
-    ]
+    translated_bboxes = bboxes + [0, translateY_factor, 0, translateY_factor]
     translated_bboxes = _crop_bbox(last_coord, translated_bboxes)
-    translated_bboxes = tf.pad(
-        translated_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(translated_bboxes)[0]], [0, 0]],
-        'CONSTANT')
     return translated_bboxes
 
 
@@ -215,8 +185,7 @@ def _shearX_image(image, shearX_factor, centralizationX_factor):
 
 
 def _shearX_bbox(last_coord, bboxes, shearX_factor, centralizationX_factor):
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    min_x, min_y, max_x, max_y = tf.split(value=valid_bboxes,
+    min_x, min_y, max_x, max_y = tf.split(value=bboxes,
                                           num_or_size_splits=4,
                                           axis=1)
     sheared_coordinate = tf.reshape(
@@ -230,10 +199,6 @@ def _shearX_bbox(last_coord, bboxes, shearX_factor, centralizationX_factor):
     max_xy = tf.reshape(tf.reduce_max(sheared_coordinate[:], axis=1), (-1, 2))
     sheared_bboxes = tf.concat([min_xy, max_xy], 1)
     sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
-    sheared_bboxes = tf.pad(
-        sheared_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(sheared_bboxes)[0]], [0, 0]],
-        'CONSTANT')
     return sheared_bboxes
 
 
@@ -258,8 +223,7 @@ def _shearY_image(image, shearY_factor, centralizationY_factor):
 
 
 def _shearY_bbox(last_coord, bboxes, shearY_factor, centralizationY_factor):
-    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
-    min_x, min_y, max_x, max_y = tf.split(value=valid_bboxes,
+    min_x, min_y, max_x, max_y = tf.split(value=bboxes,
                                           num_or_size_splits=4,
                                           axis=1)
     sheared_coordinate = tf.reshape(
@@ -273,8 +237,4 @@ def _shearY_bbox(last_coord, bboxes, shearY_factor, centralizationY_factor):
     max_xy = tf.reshape(tf.reduce_max(sheared_coordinate[:], axis=1), (-1, 2))
     sheared_bboxes = tf.concat([min_xy, max_xy], 1)
     sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
-    sheared_bboxes = tf.pad(
-        sheared_bboxes,
-        [[0, tf.shape(bboxes)[0] - tf.shape(sheared_bboxes)[0]], [0, 0]],
-        'CONSTANT')
     return sheared_bboxes
