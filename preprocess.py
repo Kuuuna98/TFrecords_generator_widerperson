@@ -199,9 +199,11 @@ def _shearX_bbox(last_coord, bboxes, shearX_factor):
 
     sheared_coordinate = sheared_coordinate @ [[1., 0.], [shearX_factor, 1.]]
 
-    min_xy = tf.reduce_min(sheared_coordinate, axis=1)
-    max_xy = tf.reduce_max(sheared_coordinate, axis=1)
-    sheared_bboxes = tf.concat([min_xy, max_xy], 1)
+    x, _ = tf.split(value=sheared_coordinate, num_or_size_splits=2, axis=-1)
+    min_x = tf.reduce_min(x, axis=1)
+    max_x = tf.reduce_max(x, axis=1)
+
+    sheared_bboxes = tf.concat([min_x, min_y, max_x, max_y], 1)
 
     sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
     return sheared_bboxes
@@ -242,9 +244,11 @@ def _shearY_bbox(last_coord, bboxes, shearY_factor):
 
     sheared_coordinate = sheared_coordinate @ [[1., shearY_factor], [0., 1.]]
 
-    min_xy = tf.reduce_min(sheared_coordinate, axis=1)
-    max_xy = tf.reduce_max(sheared_coordinate, axis=1)
-    sheared_bboxes = tf.concat([min_xy, max_xy], 1)
+    _, y = tf.split(value=sheared_coordinate, num_or_size_splits=2, axis=-1)
+    min_y = tf.reduce_min(y, axis=1)
+    max_y = tf.reduce_max(y, axis=1)
+
+    sheared_bboxes = tf.concat([min_x, min_y, max_x, max_y], 1)
 
     sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
     return sheared_bboxes
