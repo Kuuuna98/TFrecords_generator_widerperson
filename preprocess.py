@@ -187,9 +187,94 @@ def _translateY_bbox(last_coord, bboxes, translateY_factor):
         0, translateY_factor, 0, translateY_factor
     ]
     translated_bboxes = _crop_bbox(last_coord, translated_bboxes)
-
     translated_bboxes = tf.pad(
         translated_bboxes,
         [[0, tf.shape(bboxes)[0] - tf.shape(translated_bboxes)[0]], [0, 0]],
         'CONSTANT')
     return translated_bboxes
+
+
+def random_shearX(image, bboxes, run_criteria=0.3, minval=-0.3, maxval=0.3):
+    do_a_shear_random = random_factor() < run_criteria
+    if do_a_shear_random:
+        shear_factor = random_factor(minval, maxval)
+        centralization_factor = shear_factor / 2 * last_coord_factor(image)
+        adjusted_image = _shearX_image(image, shear_factor,
+                                       centralization_factor)
+        adjusted_bboxes = _shearX_bbox(last_coord_factor(image), bboxes,
+                                       shear_factor, centralization_factor)
+        return adjusted_image, adjusted_bboxes
+    else:
+        return image, bboxes
+
+
+def _shearX_image(image, shearX_factor, centralizationX_factor):
+    return tfa.image.transform(
+        image,
+        [1., shearX_factor, -1 * centralizationX_factor, 0., 1., 0., 0., 0.])
+
+
+def _shearX_bbox(last_coord, bboxes, shearX_factor, centralizationX_factor):
+    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
+    min_x, min_y, max_x, max_y = tf.split(value=valid_bboxes,
+                                          num_or_size_splits=4,
+                                          axis=1)
+    sheared_coordinate = tf.reshape(
+        tf.concat([min_x, min_y, min_x, max_y, max_x, min_y, max_x, max_y], 1),
+        (-1, 4, 2))
+    sheared_coordinate = (sheared_coordinate) @ [[1., 0.],
+                                                 [-1 * shearX_factor, 1.]] + [
+                                                     centralizationX_factor, 0.
+                                                 ]
+    min_xy = tf.reshape(tf.reduce_min(sheared_coordinate[:], axis=1), (-1, 2))
+    max_xy = tf.reshape(tf.reduce_max(sheared_coordinate[:], axis=1), (-1, 2))
+    sheared_bboxes = tf.concat([min_xy, max_xy], 1)
+    sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
+    sheared_bboxes = tf.pad(
+        sheared_bboxes,
+        [[0, tf.shape(bboxes)[0] - tf.shape(sheared_bboxes)[0]], [0, 0]],
+        'CONSTANT')
+    return sheared_bboxes
+
+
+def random_shearY(image, bboxes, run_criteria=0.3, minval=-0.3, maxval=0.3):
+    do_a_shear_random = random_factor() < run_criteria
+    if do_a_shear_random:
+        shear_factor = random_factor(minval, maxval)
+        centralization_factor = shear_factor / 2 * last_coord_factor(image)
+        adjusted_image = _shearY_image(image, shear_factor,
+                                       centralization_factor)
+        adjusted_bboxes = _shearY_bbox(last_coord_factor(image), bboxes,
+                                       shear_factor, centralization_factor)
+        return adjusted_image, adjusted_bboxes
+    else:
+        return image, bboxes
+
+
+def _shearY_image(image, shearY_factor, centralizationY_factor):
+    return tfa.image.transform(
+        image,
+        [1., 0., 0., shearY_factor, 1., -1 * centralizationY_factor, 0., 0.])
+
+
+def _shearY_bbox(last_coord, bboxes, shearY_factor, centralizationY_factor):
+    valid_bboxes = bboxes[tf.reduce_any(bboxes != 0, axis=-1)]
+    min_x, min_y, max_x, max_y = tf.split(value=valid_bboxes,
+                                          num_or_size_splits=4,
+                                          axis=1)
+    sheared_coordinate = tf.reshape(
+        tf.concat([min_x, min_y, min_x, max_y, max_x, min_y, max_x, max_y], 1),
+        (-1, 4, 2))
+    sheared_coordinate = (sheared_coordinate) @ [[1., -1 * shearY_factor],
+                                                 [0., 1.]] + [
+                                                     0., centralizationY_factor
+                                                 ]
+    min_xy = tf.reshape(tf.reduce_min(sheared_coordinate[:], axis=1), (-1, 2))
+    max_xy = tf.reshape(tf.reduce_max(sheared_coordinate[:], axis=1), (-1, 2))
+    sheared_bboxes = tf.concat([min_xy, max_xy], 1)
+    sheared_bboxes = _crop_bbox(last_coord, sheared_bboxes)
+    sheared_bboxes = tf.pad(
+        sheared_bboxes,
+        [[0, tf.shape(bboxes)[0] - tf.shape(sheared_bboxes)[0]], [0, 0]],
+        'CONSTANT')
+    return sheared_bboxes
