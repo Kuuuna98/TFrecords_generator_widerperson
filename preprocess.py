@@ -168,7 +168,7 @@ def random_shearX(image, bboxes, run_criteria=0.3, minval=-0.3, maxval=0.3):
     do_a_shear_random = random_factor() < run_criteria
     if do_a_shear_random:
         shear_factor = random_factor(minval, maxval)
-        adjusted_image = _shearX_image_transformFunc(image, shear_factor)
+        adjusted_image = _shearX_image(image, shear_factor)
         adjusted_bboxes = _shearX_bbox(last_coord_factor(image), bboxes,
                                        shear_factor)
         return adjusted_image, adjusted_bboxes
@@ -176,17 +176,9 @@ def random_shearX(image, bboxes, run_criteria=0.3, minval=-0.3, maxval=0.3):
         return image, bboxes
 
 
-def _shearX_image_transformFunc(image, shearX_factor):
+def _shearX_image(image, shearX_factor):
     return tfa.image.transform(image,
                                [1., -shearX_factor, 0., 0., 1., 0., 0., 0.])
-
-
-def _shearX_image_shear_xFunc(image, shearX_factor):
-    image_uint8 = tf.image.convert_image_dtype(image, tf.uint8)
-    sheared_image_uint8 = tfa.image.shear_x(image_uint8, -shearX_factor, 0)
-    sheared_image = tf.image.convert_image_dtype(sheared_image_uint8,
-                                                 tf.float32)
-    return sheared_image
 
 
 def _shearX_bbox(last_coord, bboxes, shearX_factor):
@@ -213,7 +205,7 @@ def random_shearY(image, bboxes, run_criteria=0.3, minval=-0.3, maxval=0.3):
     do_a_shear_random = random_factor() < run_criteria
     if do_a_shear_random:
         shear_factor = random_factor(minval, maxval)
-        adjusted_image = _shearY_image_shear_yFunc(image, shear_factor)
+        adjusted_image = _shearY_image(image, shear_factor)
         adjusted_bboxes = _shearY_bbox(last_coord_factor(image), bboxes,
                                        shear_factor)
         return adjusted_image, adjusted_bboxes
@@ -221,17 +213,9 @@ def random_shearY(image, bboxes, run_criteria=0.3, minval=-0.3, maxval=0.3):
         return image, bboxes
 
 
-def _shearY_image_transformFunc(image, shearY_factor):
+def _shearY_image(image, shearY_factor):
     return tfa.image.transform(image,
                                [1., 0., 0., -shearY_factor, 1., 0., 0., 0.])
-
-
-def _shearY_image_shear_yFunc(image, shearY_factor):
-    image_uint8 = tf.image.convert_image_dtype(image, tf.uint8)
-    sheared_image_uint8 = tfa.image.shear_y(image_uint8, -shearY_factor, 0)
-    sheared_image = tf.image.convert_image_dtype(sheared_image_uint8,
-                                                 tf.float32)
-    return sheared_image
 
 
 def _shearY_bbox(last_coord, bboxes, shearY_factor):
